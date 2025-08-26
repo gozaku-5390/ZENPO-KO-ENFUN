@@ -54,7 +54,7 @@
   let gameOver = false;
 
   function spawn() {
-    if(frame % 100 === 0) {
+    if(frame % 200 === 0) {
       if(isMobile) {
         obstacles.push({x: Math.random()*360, y:-20, size:40});
       } else {
@@ -79,11 +79,11 @@
     player.y += (target.y - player.y) * 0.1;
 
     if(isMobile) {
-      obstacles.forEach(o => o.y += 1);
-      coins.forEach(c => c.y += 1);
+      obstacles.forEach(o => o.y += 5);
+      coins.forEach(c => c.y += 5);
     } else {
-      obstacles.forEach(o => o.x += 1);
-      coins.forEach(c => c.x += 1);
+      obstacles.forEach(o => o.x += 5);
+      coins.forEach(c => c.x += 5);
     }
 
     // コイン取得判定
@@ -172,4 +172,5 @@
 </script>
 </body>
 </html>
+
 
