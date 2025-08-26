@@ -79,11 +79,11 @@
     player.y += (target.y - player.y) * 0.1;
 
     if(isMobile) {
-      obstacles.forEach(o => o.y += 5);
-      coins.forEach(c => c.y += 5);
+      obstacles.forEach(o => o.y += 10);
+      coins.forEach(c => c.y += 10);
     } else {
-      obstacles.forEach(o => o.x += 5);
-      coins.forEach(c => c.x += 5);
+      obstacles.forEach(o => o.x += 10);
+      coins.forEach(c => c.x += 10);
     }
 
     // コイン取得判定
@@ -172,5 +172,6 @@
 </script>
 </body>
 </html>
+
 
 
