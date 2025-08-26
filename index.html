@@ -105,14 +105,19 @@ function update() {
   player.x += (target.x - player.x) * 0.1;
   player.y += (target.y - player.y) * 0.1;
 
-  // 障害物・コイン移動
-  if(isMobile){
-    obstacles.forEach(o => o.y += 7);
-    coins.forEach(c => c.y += 7);
-  } else {
-    obstacles.forEach(o => o.x += 7);
-    coins.forEach(c => c.x += 7);
-  }
+// update() 内の障害物・コイン移動
+if(isMobile){
+  obstacles.forEach(o => o.y += 15);  // ← 15に変更
+  coins.forEach(c => c.y += 15);      // ← 15に変更
+} else {
+  obstacles.forEach(o => o.x += 15);  // ← 15に変更
+  coins.forEach(c => c.x += 15);      // ← 15に変更
+}
+
+// プレイヤーが画面外に行かないように制限
+player.x = Math.max(player.size, Math.min(GAME_WIDTH - player.size, player.x));
+player.y = Math.max(player.size, Math.min(GAME_HEIGHT - player.size, player.y));
+
 
   // コイン取得
   coins = coins.filter(c => {
@@ -208,3 +213,4 @@ loop();
 </script>
 </body>
 </html>
+
