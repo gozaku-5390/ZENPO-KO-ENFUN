@@ -5,173 +5,206 @@
   <title>前方後円墳で来た。</title>
   <style>
     body { margin: 0; background: black; overflow: hidden; }
-    canvas { display: block; margin: auto; background: #00bfff; }
+    canvas { display: block; margin: auto; background: black; }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <script>
-  const canvas = document.getElementById("gameCanvas");
-  const ctx = canvas.getContext("2d");
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-  // 画面サイズを調整
-  canvas.width = 400;
-  canvas.height = 600;
+// ゲーム内の論理サイズ
+const GAME_WIDTH = 400;
+const GAME_HEIGHT = 600;
 
-  // スマホ判定
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+// スマホ判定
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  // プレイヤー（古墳）
-  let player = { x: 200, y: 500, size: 40, vx: 200, vy: 500 };
-  let target = { x: 200, y: 500 }; // 指・マウスの目標位置
+// プレイヤー
+let player = { x: 200, y: 500, size: 40 };
+let target = { x: 200, y: 500 };
 
-  // 古墳画像
-  const kofunImg = new Image();
-  kofunImg.src = "kofun.png";
+// 古墳画像
+const kofunImg = new Image();
+kofunImg.src = "kofun.png";
 
-  // 入力処理
-  canvas.addEventListener("mousemove", e => {
-    const rect = canvas.getBoundingClientRect();
-    if (isMobile) {
-      target.x = e.clientX - rect.left;
+// 障害物・コイン
+let obstacles = [];
+let coins = [];
+let score = 0;
+let frame = 0;
+let gameOver = false;
+
+// スケーリング用
+let scaleX = 1, scaleY = 1;
+
+function resizeCanvas() {
+  const windowRatio = window.innerWidth / window.innerHeight;
+  const gameRatio = GAME_WIDTH / GAME_HEIGHT;
+
+  if(windowRatio > gameRatio){
+    // 画面が横長 → 高さに合わせる
+    canvas.height = window.innerHeight;
+    canvas.width = canvas.height * gameRatio;
+  } else {
+    // 画面が縦長 → 幅に合わせる
+    canvas.width = window.innerWidth;
+    canvas.height = canvas.width / gameRatio;
+  }
+
+  scaleX = canvas.width / GAME_WIDTH;
+  scaleY = canvas.height / GAME_HEIGHT;
+  ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+}
+
+// 初回とリサイズ
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// 入力処理
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  if(!isMobile){
+    target.y = e.clientY / scaleY;
+  } else {
+    target.x = e.clientX / scaleX;
+  }
+});
+canvas.addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  target.x = t.clientX / scaleX;
+  target.y = t.clientY / scaleY;
+  e.preventDefault();
+}, { passive: false });
+
+// 障害物・コイン生成
+function spawn() {
+  if(frame % 200 === 0){
+    if(isMobile){
+      obstacles.push({x: Math.random()*360, y:-20, size:40});
     } else {
-      target.y = e.clientY - rect.top;
+      obstacles.push({x: -20, y:Math.random()*560, size:40});
+    }
+  }
+  if(frame % 150 === 0){
+    if(isMobile){
+      coins.push({x: Math.random()*380, y:-20, size:20});
+    } else {
+      coins.push({x: -20, y:Math.random()*580, size:20});
+    }
+  }
+}
+
+// 更新処理
+function update() {
+  frame++;
+  spawn();
+
+  // 慣性で追従
+  player.x += (target.x - player.x) * 0.1;
+  player.y += (target.y - player.y) * 0.1;
+
+  // 障害物・コイン移動
+  if(isMobile){
+    obstacles.forEach(o => o.y += 7);
+    coins.forEach(c => c.y += 7);
+  } else {
+    obstacles.forEach(o => o.x += 7);
+    coins.forEach(c => c.x += 7);
+  }
+
+  // コイン取得
+  coins = coins.filter(c => {
+    let dx = player.x - c.x, dy = player.y - c.y;
+    if(Math.sqrt(dx*dx+dy*dy) < player.size){
+      score += 10;
+      return false;
+    }
+    return true;
+  });
+
+  // 障害物衝突判定
+  obstacles.forEach(o => {
+    let dx = player.x - o.x, dy = player.y - o.y;
+    if(Math.sqrt(dx*dx+dy*dy) < player.size + o.size/2){
+      gameOver = true;
     }
   });
-  canvas.addEventListener("touchmove", e => {
-    const rect = canvas.getBoundingClientRect();
-    const t = e.touches[0];
-    target.x = t.clientX - rect.left;
-    target.y = t.clientY - rect.top;
-    e.preventDefault();
-  }, { passive: false });
 
-  // 障害物とコイン
-  let obstacles = [];
-  let coins = [];
-  let score = 0;
-  let frame = 0;
-  let gameOver = false;
-
-  function spawn() {
-    if(frame % 200 === 0) {
-      if(isMobile) {
-        obstacles.push({x: Math.random()*360, y:-20, size:40});
-      } else {
-        obstacles.push({x: -20, y:Math.random()*560, size:40});
-      }
-    }
-    if(frame % 150 === 0) {
-      if(isMobile) {
-        coins.push({x: Math.random()*380, y:-20, size:20});
-      } else {
-        coins.push({x: -20, y:Math.random()*580, size:20});
-      }
-    }
+  // 画面外除去
+  if(isMobile){
+    obstacles = obstacles.filter(o => o.y < GAME_HEIGHT);
+    coins = coins.filter(c => c.y < GAME_HEIGHT);
+  } else {
+    obstacles = obstacles.filter(o => o.x < GAME_WIDTH);
+    coins = coins.filter(c => c.x < GAME_WIDTH);
   }
 
-  function update() {
-    frame++;
-    spawn();
+  // 時間経過スコア
+  score++;
+}
 
-    // 慣性でプレイヤーを移動（遅れてついてくる）
-    player.x += (target.x - player.x) * 0.1;
-    player.y += (target.y - player.y) * 0.1;
-
-    if(isMobile) {
-      obstacles.forEach(o => o.y += 10);
-      coins.forEach(c => c.y += 10);
-    } else {
-      obstacles.forEach(o => o.x += 10);
-      coins.forEach(c => c.x += 10);
-    }
-
-    // コイン取得判定
-    coins = coins.filter(c => {
-      let dx = player.x - c.x, dy = player.y - c.y;
-      if(Math.sqrt(dx*dx+dy*dy) < player.size) {
-        score += 10;
-        return false;
-      }
-      return true;
-    });
-
-    // 障害物衝突判定
-    obstacles.forEach(o => {
-      let dx = player.x - o.x, dy = player.y - o.y;
-      if(Math.sqrt(dx*dx+dy*dy) < player.size + o.size/2) {
-        gameOver = true;
-      }
-    });
-
-    // 画面外除去
-    if(isMobile) {
-      obstacles = obstacles.filter(o => o.y < 600);
-      coins = coins.filter(c => c.y < 600);
-    } else {
-      obstacles = obstacles.filter(o => o.x < 400);
-      coins = coins.filter(c => c.x < 400);
-    }
-
-    // 時間経過スコア
-    score++;
+// プレイヤー描画
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  if(!isMobile){
+    ctx.rotate(Math.PI/2);
   }
+  ctx.drawImage(kofunImg, -player.size, -player.size, player.size*2, player.size*2);
+  ctx.restore();
+}
 
-  function drawPlayer() {
-    ctx.save();
-    ctx.translate(player.x, player.y);
-    if (!isMobile) {
-      ctx.rotate(Math.PI / 2); // PCは90度回転
-    }
-    ctx.drawImage(kofunImg, -player.size, -player.size, player.size*2, player.size*2);
-    ctx.restore();
+// 描画
+function draw() {
+  // 背景（黒で余白を埋める）
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
+
+  // 海
+  ctx.fillStyle = "#00bfff";
+  ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
+
+  // プレイヤー
+  drawPlayer();
+
+  // 障害物
+  ctx.fillStyle = "brown";
+  obstacles.forEach(o=>{
+    ctx.beginPath();
+    ctx.arc(o.x,o.y,o.size,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // コイン
+  ctx.fillStyle = "yellow";
+  coins.forEach(c=>{
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,c.size,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // スコア
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: "+score,10,30);
+}
+
+// ループ
+function loop(){
+  if(!gameOver){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  } else {
+    ctx.fillStyle = "red";
+    ctx.font = "40px Arial";
+    ctx.fillText("GAME OVER", 80, 300);
   }
+}
 
-  function draw() {
-    ctx.fillStyle = "#00bfff"; // 海
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    // プレイヤー
-    drawPlayer();
-
-    // 障害物
-    ctx.fillStyle = "brown";
-    obstacles.forEach(o => {
-      ctx.beginPath();
-      ctx.arc(o.x, o.y, o.size, 0, Math.PI*2);
-      ctx.fill();
-    });
-
-    // コイン
-    ctx.fillStyle = "yellow";
-    coins.forEach(c => {
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.size, 0, Math.PI*2);
-      ctx.fill();
-    });
-
-    // スコア
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.fillText("Score: " + score, 10, 30);
-  }
-
-  function loop() {
-    if(!gameOver){
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    } else {
-      ctx.fillStyle = "red";
-      ctx.font = "40px Arial";
-      ctx.fillText("GAME OVER", 80, 300);
-    }
-  }
-
-  loop();
+loop();
 </script>
 </body>
 </html>
-
-
-
