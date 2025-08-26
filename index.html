@@ -27,7 +27,7 @@
 
   // 古墳画像
   const kofunImg = new Image();
-  kofunImg.src = "images/kofun.png"; // ←imagesフォルダに置いてね
+  kofunImg.src = "kofun.png";
 
   // 入力処理
   canvas.addEventListener("mousemove", e => {
@@ -79,11 +79,11 @@
     player.y += (target.y - player.y) * 0.1;
 
     if(isMobile) {
-      obstacles.forEach(o => o.y += 5);
-      coins.forEach(c => c.y += 5);
+      obstacles.forEach(o => o.y += 1);
+      coins.forEach(c => c.y += 1);
     } else {
-      obstacles.forEach(o => o.x += 5);
-      coins.forEach(c => c.x += 5);
+      obstacles.forEach(o => o.x += 1);
+      coins.forEach(c => c.x += 1);
     }
 
     // コイン取得判定
@@ -172,3 +172,4 @@
 </script>
 </body>
 </html>
+
