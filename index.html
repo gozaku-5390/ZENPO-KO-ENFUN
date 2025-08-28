@@ -131,7 +131,7 @@ let kofun={ x:canvas.width/2, y:canvas.height-tileSize*1.5, size:tileSize };
 let mouse={x:kofun.x, y:kofun.y};
 
 let islands=[], coins=[], magatamas=[], score=0, gameOver=false;
-let maxFuel=50, fuel=maxFuel, fuelConsumption=0.1;
+let maxFuel=40, fuel=maxFuel, fuelConsumption=0.1;
 
 // --- 入力 ---
 canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX - kofun.size/2; mouse.y=e.offsetY - kofun.size/2; });
@@ -283,4 +283,5 @@ startBtn.addEventListener("click",()=>{
 </script>
 </body>
 </html>
+
 
