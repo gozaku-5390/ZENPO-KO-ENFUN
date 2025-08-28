@@ -34,19 +34,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// --- 今日の日付キー ---
+// --- 今日の世界記録 ---
 function getTodayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
 }
-
-// --- 今日の世界記録を取得 ---
 async function getTodayRecord() {
   const snapshot = await get(ref(db, 'worldRecords/' + getTodayKey()));
   return snapshot.exists() ? snapshot.val() : 0;
 }
-
-// --- 今日の世界記録を更新 ---
 async function updateTodayRecord(score) {
   const key = getTodayKey();
   const oldScore = await getTodayRecord();
@@ -71,6 +67,7 @@ const seaImg = new Image(); seaImg.src = "sea_tile.png";
 const islandImg = new Image(); islandImg.src = "island.png";
 const kofunImg = new Image(); kofunImg.src = "kofun.png";
 const coinImg = new Image(); coinImg.src = "coin.png";
+const magatamaImg = new Image(); magatamaImg.src = "magatama.png"; // 勾玉
 
 // --- 初期化 ---
 let seaTiles = [];
@@ -82,13 +79,18 @@ const scrollSpeed = baseSpeed*(tileSize/64);
 let kofun={ x:canvas.width/2, y:canvas.height-tileSize*1.5, size:tileSize };
 let mouse={x:kofun.x, y:kofun.y};
 
-let islands=[], coins=[], score=0, gameOver=false;
+let islands=[], coins=[], magatamas=[], score=0, gameOver=false;
+
+// --- 燃料 ---
+let maxFuel = 100;
+let fuel = maxFuel;
+const fuelConsumption = 0.1;
 
 // --- 入力 ---
 canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX - kofun.size/2; mouse.y=e.offsetY - kofun.size/2; });
 canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX - kofun.size/2; mouse.y=e.touches[0].clientY - kofun.size/2; });
 
-// --- 島・コイン ---
+// --- 島・コイン・勾玉 ---
 function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
 setInterval(spawnIsland,2000);
 
@@ -102,6 +104,11 @@ function spawnCoin(){
 }
 setInterval(spawnCoin,1500);
 
+function spawnMagatama(){
+  magatamas.push({ x: Math.random()*(canvas.width - tileSize/2), y: -tileSize/2, size: tileSize/2 });
+}
+setInterval(spawnMagatama,10000);
+
 // --- 衝突判定 ---
 function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
 
@@ -109,28 +116,19 @@ function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b
 let loopId;
 function gameLoop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
+
   // 海
   for(let t of seaTiles) ctx.drawImage(seaImg,t.x*tileSize,t.y*tileSize+offsetY,tileSize,tileSize);
   offsetY += scrollSpeed; if(offsetY>=tileSize) offsetY=0;
 
   // 島
-for(let i=islands.length-1;i>=0;i--){
-    let island = islands[i];
-    island.y += scrollSpeed;
-    ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
-
-    // 小さめの矩形で衝突判定
-    const margin = 0.6; // 判定サイズを60%に
-    const hitBox = {
-        x: island.x + island.size * (1 - margin) / 2,
-        y: island.y + island.size * (1 - margin) / 2,
-        size: island.size * margin
-    };
-    if(isColliding(kofun, hitBox)) gameOver = true;
-
-    if(island.y > canvas.height) islands.splice(i,1);
-}
-
+  for(let i=islands.length-1;i>=0;i--){
+    let isl=islands[i];
+    isl.y+=scrollSpeed;
+    ctx.drawImage(islandImg,isl.x,isl.y,isl.size,isl.size);
+    if(isColliding(kofun,isl)) gameOver=true;
+    if(isl.y>canvas.height) islands.splice(i,1);
+  }
 
   // コイン
   for(let i=coins.length-1;i>=0;i--){
@@ -140,6 +138,23 @@ for(let i=islands.length-1;i>=0;i--){
     if(isColliding(kofun,coin)){ score+=10; coins.splice(i,1); }
     else if(coin.y>canvas.height) coins.splice(i,1);
   }
+
+  // 勾玉
+  for(let i=magatamas.length-1;i>=0;i--){
+    let m = magatamas[i];
+    m.y += scrollSpeed;
+    ctx.drawImage(magatamaImg, m.x, m.y, m.size, m.size);
+    if(isColliding(kofun, m)){
+      fuel = Math.min(maxFuel, fuel + 30);
+      magatamas.splice(i,1);
+    } else if(m.y > canvas.height){
+      magatamas.splice(i,1);
+    }
+  }
+
+  // 燃料消費
+  fuel -= fuelConsumption;
+  if(fuel <= 0){ fuel=0; gameOver=true; }
 
   // 古墳追従
   kofun.x += (mouse.x-kofun.x)*0.05;
@@ -153,6 +168,15 @@ for(let i=islands.length-1;i>=0;i--){
   ctx.fillStyle="black";
   ctx.font = `${Math.floor(canvas.width/30)}px sans-serif`;
   ctx.fillText("Score: "+score,10,Math.floor(canvas.width/30)+10);
+
+  // 燃料ゲージ
+  ctx.fillStyle="purple";
+  ctx.fillRect(10,50,fuel*2,20);
+  ctx.strokeStyle="black";
+  ctx.strokeRect(10,50,maxFuel*2,20);
+  ctx.fillStyle="black";
+  ctx.font="16px sans-serif";
+  ctx.fillText("Magatama Fuel",10,45);
 
   if(gameOver){ onGameOver(); return; }
 
@@ -177,13 +201,11 @@ async function onGameOver(){
 // --- リスタート ---
 restartBtn.addEventListener("click",()=>{ restartBtn.style.display="none"; resetGame(); gameLoop(); });
 function resetGame(){
-  islands=[]; coins=[]; score=0; gameOver=false;
+  islands=[]; coins=[]; magatamas=[]; score=0; fuel=maxFuel; gameOver=false;
   kofun.x=canvas.width/2; kofun.y=canvas.height-tileSize*1.5;
 }
 
-// --- スタート ---
 gameLoop();
 </script>
 </body>
 </html>
-
