@@ -6,31 +6,20 @@
 <style>
   body { margin:0; overflow:hidden; touch-action:none; background:#87ceeb; font-family:sans-serif; }
   canvas { display:block; margin:auto; background:#87ceeb; }
-
   #restartBtn {
     position:absolute; display:none; left:50%; transform:translateX(-50%);
-    padding:10px 20px; font-size:20px; cursor:pointer; z-index:10; top:-100px;
+    padding:10px 20px; font-size:20px; cursor:pointer; z-index:10;
   }
-
   /* ロード画面 */
   #loadOverlay {
     position:absolute; top:0; left:0; width:100%; height:100%;
     background:#000000cc; color:white; display:flex;
     flex-direction:column; justify-content:center; align-items:center; font-size:24px;
-    z-index:10; display:none;
-  }
-  #loadBarContainer { width:300px; background:#555; height:30px; border-radius:15px; overflow:hidden; margin-bottom:10px; }
-  #loadBar { height:100%; width:0%; background:#0f0; }
-  #loadKofun { width:100px; margin-bottom:20px; }
-
-  /* 操作説明 */
-  #startOverlay {
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    background:rgba(0,0,0,0.7); color:white; display:flex;
-    flex-direction:column; justify-content:center; align-items:center; font-size:24px;
     z-index:10;
   }
-  #startBtn { font-size:28px; padding:10px 30px; cursor:pointer; margin-top:20px; }
+  #loadOverlay img { width:100px; margin-bottom:20px; }
+  #loadBarContainer { width:300px; background:#555; height:30px; border-radius:15px; overflow:hidden; }
+  #loadBar { height:100%; width:0%; background:#0f0; }
 </style>
 </head>
 <body>
@@ -39,20 +28,25 @@
 
 <!-- ロード画面 -->
 <div id="loadOverlay">
-  <img id="loadKofun" src="kofun.png">
+  <img src="kofun.png" alt="Kofun">
   <div id="loadBarContainer"><div id="loadBar"></div></div>
   <p id="loadText">0%</p>
 </div>
 
-<!-- 操作説明オーバーレイ -->
-<div id="startOverlay">
-  <div style="text-align:center; margin-bottom:30px;">
+<!-- スタート説明オーバーレイ -->
+<div id="startOverlay" style="
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.7); color:white; display:none;
+    flex-direction:column; justify-content:center; align-items:center; font-size:24px;
+    z-index:10;
+">
+  <div style="margin-bottom:30px; text-align:center;">
     <p>前方後円墳を操作してコインを集めよう！</p>
     <p>マウス/タッチで移動</p>
     <p>勾玉を取ると燃料回復</p>
     <p>燃料がなくなるとゲームオーバー</p>
   </div>
-  <button id="startBtn">START</button>
+  <button id="startBtn" style="font-size:28px; padding:10px 30px; cursor:pointer;">START</button>
 </div>
 
 <script type="module">
@@ -100,7 +94,6 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 let tileSize = Math.min(canvas.width/7, canvas.height/12);
 
-// --- 画像 ---
 let seaImg = new Image(); seaImg.src = "sea_tile.png";
 let islandImg = new Image(); islandImg.src = "island.png";
 let kofunImg = new Image(); kofunImg.src = "kofun.png";
@@ -115,7 +108,6 @@ const loadOverlay = document.getElementById("loadOverlay");
 const loadBar = document.getElementById("loadBar");
 const loadText = document.getElementById("loadText");
 const startOverlay = document.getElementById("startOverlay");
-
 assets.forEach(img=>{
   img.onload = ()=>{
     loadedCount++;
@@ -123,10 +115,7 @@ assets.forEach(img=>{
     loadBar.style.width = percent+"%";
     loadText.textContent = percent+"%";
     if(loadedCount === assets.length){
-      setTimeout(()=>{
-        loadOverlay.style.display="none";
-        startOverlay.style.display="flex";
-      }, 500);
+      setTimeout(()=>{ loadOverlay.style.display="none"; startOverlay.style.display="flex"; }, 500);
     }
   }
 });
@@ -140,6 +129,7 @@ const scrollSpeed = baseSpeed*(tileSize/64);
 
 let kofun={ x:canvas.width/2, y:canvas.height-tileSize*1.5, size:tileSize };
 let mouse={x:kofun.x, y:kofun.y};
+
 let islands=[], coins=[], magatamas=[], score=0, gameOver=false;
 let maxFuel=40, fuel=maxFuel, fuelConsumption=0.1;
 
@@ -150,7 +140,7 @@ canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX - kofun.s
 // --- 衝突判定 ---
 function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
 
-// --- スポーン ---
+// --- 島・コイン・勾玉スポーン ---
 function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
 function spawnCoin(){
   let coin, overlap;
@@ -245,33 +235,23 @@ async function onGameOver(){
   let todayRecord = await getTodayRecord();
   if(score>todayRecord){ await updateTodayRecord(score); todayRecord=score; }
 
-  let displayY = -200;
-  function drawGameOver(){
-    ctx.fillStyle="rgba(200,200,200,0.9)";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+  // 画面グレー
+  ctx.fillStyle="rgba(200,200,200,0.9)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    ctx.fillStyle="red"; ctx.textAlign="center";
-    ctx.font = `${Math.floor(canvas.width/15)}px sans-serif`;
-    ctx.fillText("GAME OVER",canvas.width/2,displayY);
+  // GAME OVER
+  ctx.fillStyle="red"; ctx.textAlign="center";
+  ctx.font = `${Math.floor(canvas.width/15)}px sans-serif`;
+  ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 40);
 
-    ctx.fillStyle="black";
-    ctx.font = `${Math.floor(canvas.width/25)}px sans-serif`;
-    ctx.fillText("Your Score: "+score,canvas.width/2,displayY+60);
-    ctx.fillText("Today's Record: "+todayRecord,canvas.width/2,displayY+110);
+  // スコア表示
+  ctx.fillStyle="black"; ctx.font = `${Math.floor(canvas.width/25)}px sans-serif`;
+  ctx.fillText("Your Score: " + score, canvas.width/2, canvas.height/2 + 10);
+  ctx.fillText("Today's Record: " + todayRecord, canvas.width/2, canvas.height/2 + 50);
 
-    if(displayY<canvas.height/2){
-      displayY+=15;
-      requestAnimationFrame(drawGameOver);
-    } else {
-      restartBtn.style.display="block";
-      let btnY=-100;
-      function dropButton(){
-        if(btnY<canvas.height/2+150){ btnY+=15; restartBtn.style.top=btnY+"px"; requestAnimationFrame(dropButton);}
-      }
-      dropButton();
-    }
-  }
-  drawGameOver();
+  // リスタートボタン
+  restartBtn.style.top = (canvas.height/2 + 100) + "px";
+  restartBtn.style.display="block";
 }
 
 // --- リスタート ---
@@ -295,18 +275,13 @@ const startBtn = document.getElementById("startBtn");
 let loopStarted=false;
 startBtn.addEventListener("click",()=>{
   startOverlay.style.display="none";
-  loadOverlay.style.display="flex";
-  // 強制的に少し待ってからゲーム開始
-  setTimeout(()=>{
-    loadOverlay.style.display="none";
-    if(!loopStarted){
-      loopStarted=true;
-      islandInterval = setInterval(spawnIsland,1000);
-      coinInterval = setInterval(spawnCoin,1000);
-      magatamaInterval = setInterval(spawnMagatama,2500);
-      gameLoop();
-    }
-  }, 800);
+  if(!loopStarted){
+    loopStarted=true;
+    islandInterval = setInterval(spawnIsland,1000);
+    coinInterval = setInterval(spawnCoin,1000);
+    magatamaInterval = setInterval(spawnMagatama,2500);
+    gameLoop();
+  }
 });
 </script>
 </body>
