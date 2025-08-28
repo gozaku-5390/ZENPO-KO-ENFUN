@@ -10,47 +10,25 @@
     position:absolute; display:none; left:50%; transform:translateX(-50%);
     padding:10px 20px; font-size:20px; cursor:pointer; z-index:10;
   }
+  #loadOverlay {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:#000000cc; color:white; display:flex;
+    justify-content:center; align-items:center; font-size:36px;
+    z-index:10;
+  }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
 
-<!-- ロード画面 -->
-<div id="loadOverlay" style="
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    background:#000000cc; color:white; display:flex;
-    flex-direction:column; justify-content:center; align-items:center; font-size:24px;
-    z-index:10;
-">
-  <img id="loadKofun" src="kofun.png" style="width:100px; margin-bottom:20px;">
-  <div style="width:300px; background:#555; height:30px; border-radius:15px; overflow:hidden;">
-    <div id="loadBar" style="height:100%; width:0%; background:#0f0;"></div>
-  </div>
-  <p id="loadText">0%</p>
-</div>
-
-<!-- 操作説明オーバーレイ -->
-<div id="startOverlay" style="
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    background:rgba(0,0,0,0.7); color:white; display:none;
-    flex-direction:column; justify-content:center; align-items:center; font-size:24px;
-    z-index:10;
-">
-  <div style="margin-bottom:30px; text-align:center;">
-    <p>前方後円墳を操作してコインを集めよう！</p>
-    <p>マウス/タッチで移動</p>
-    <p>勾玉を取ると燃料回復</p>
-    <p>燃料がなくなるとゲームオーバー</p>
-  </div>
-  <button id="startBtn" style="font-size:28px; padding:10px 30px; cursor:pointer;">START</button>
-</div>
+<div id="loadOverlay">Now Loading…</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-// Firebase設定
+// --- Firebase設定 ---
 const firebaseConfig = {
   apiKey: "AIzaSyBMJWHa5H0COcPcFO5-SJV3jaIm1y9lggY",
   authDomain: "zenpo-ko-enfun.firebaseapp.com",
@@ -64,7 +42,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// 今日の世界記録
+// --- 今日の世界記録 ---
 function getTodayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
@@ -83,7 +61,7 @@ async function updateTodayRecord(score) {
   return false;
 }
 
-// ゲーム用
+// --- ゲーム用 ---
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const restartBtn = document.getElementById("restartBtn");
@@ -91,140 +69,124 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 let tileSize = Math.min(canvas.width/7, canvas.height/12);
 
-// 画像
 let seaImg = new Image(); seaImg.src = "sea_tile.png";
 let islandImg = new Image(); islandImg.src = "island.png";
 let kofunImg = new Image(); kofunImg.src = "kofun.png";
 let coinImg = new Image(); coinImg.src = "coin.png";
 let magatamaImg = new Image(); magatamaImg.src = "magatama.png";
 
-let assets = [seaImg,islandImg,kofunImg,coinImg,magatamaImg];
-let loadedCount=0;
+let assets = [seaImg, islandImg, kofunImg, coinImg, magatamaImg];
+let loadedCount = 0;
 
-// ロード処理
+// --- ロード処理 ---
 const loadOverlay = document.getElementById("loadOverlay");
-const loadBar = document.getElementById("loadBar");
-const loadText = document.getElementById("loadText");
-const startOverlay = document.getElementById("startOverlay");
 assets.forEach(img=>{
-  img.onload=()=>{
+  img.onload = ()=>{
     loadedCount++;
-    let percent = Math.floor(loadedCount/assets.length*100);
-    loadBar.style.width = percent+"%";
-    loadText.textContent = percent+"%";
-    if(loadedCount===assets.length){
-      setTimeout(()=>{ loadOverlay.style.display="none"; startOverlay.style.display="flex"; },500);
+    if(loadedCount === assets.length){
+      setTimeout(()=>{ loadOverlay.style.display="none"; startGame(); }, 300);
     }
   }
 });
 
-// 初期化
-let seaTiles=[];
+// --- 初期化 ---
+let seaTiles = [];
 for(let y=-1;y<=12;y++) for(let x=0;x<7;x++) seaTiles.push({x,y});
 let offsetY=0;
 const baseSpeed=16;
-const scrollSpeed=baseSpeed*(tileSize/64);
+const scrollSpeed = baseSpeed*(tileSize/64);
 
-let kofun={x:canvas.width/2,y:canvas.height-tileSize*1.5,size:tileSize};
-let mouse={x:kofun.x,y:kofun.y};
+let kofun={ x:canvas.width/2, y:canvas.height-tileSize*1.5, size:tileSize };
+let mouse={x:kofun.x, y:kofun.y};
 
-let islands=[],coins=[],magatamas=[],score=0,gameOver=false;
-let maxFuel=40,fuel=maxFuel,fuelConsumption=0.1;
+let islands=[], coins=[], magatamas=[], score=0, gameOver=false;
+let maxFuel=40, fuel=maxFuel, fuelConsumption=0.1;
 
-// 入力
+// --- 入力 ---
 canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX - kofun.size/2; mouse.y=e.offsetY - kofun.size/2; });
 canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX - kofun.size/2; mouse.y=e.touches[0].clientY - kofun.size/2; });
 
-// 衝突判定
+// --- 衝突判定 ---
 function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
 
-// 島・コイン・勾玉スポーン
-function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2),y:-tileSize*2,size:tileSize*2}); }
+// --- スポーン ---
+function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
 function spawnCoin(){
-  let coin,overlap;
+  let coin, overlap;
   do{
-    coin={x:Math.random()*(canvas.width-tileSize/2),y:-tileSize/2,size:tileSize/2};
+    coin={x:Math.random()*(canvas.width-tileSize/2), y:-tileSize/2, size:tileSize/2};
     overlap=islands.some(island=>!(coin.x+coin.size<island.x||coin.x>island.x+island.size||coin.y+coin.size<island.y||coin.y>island.y+island.size));
   }while(overlap);
   coins.push(coin);
 }
 function spawnMagatama(){
-  let m={x:Math.random()*(canvas.width-tileSize*1),y:-tileSize*1,size:tileSize*1};
-  islands.forEach(island=>{
-    if(!(m.x+m.size<island.x||m.x>island.x+island.size||m.y+m.size<island.y||m.y>island.y+island.size)){
-      m.x=Math.min(canvas.width-m.size,island.x+island.size+5);
+  let m = { x: Math.random()*(canvas.width - tileSize), y: -tileSize, size: tileSize };
+  islands.forEach(island => {
+    if (!(m.x + m.size < island.x || m.x > island.x + island.size || m.y + m.size < island.y || m.y > island.y + island.size)) {
+      m.x = Math.min(canvas.width - m.size, island.x + island.size + 5);
     }
   });
   magatamas.push(m);
 }
 
-// ゲームループ
 let loopId;
 function gameLoop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // 海
   for(let t of seaTiles) ctx.drawImage(seaImg,t.x*tileSize,t.y*tileSize+offsetY,tileSize,tileSize);
-  offsetY+=scrollSpeed;if(offsetY>=tileSize) offsetY=0;
+  offsetY += scrollSpeed; if(offsetY>=tileSize) offsetY=0;
 
   // 島
   for(let i=islands.length-1;i>=0;i--){
-    let island=islands[i];
-    island.y+=scrollSpeed;
-    ctx.drawImage(islandImg,island.x,island.y,island.size,island.size);
-    const margin=0.6;
-    const hitBox={x:island.x+island.size*(1-margin)/2,y:island.y+island.size*(1-margin)/2,size:island.size*margin};
-    if(isColliding(kofun,hitBox)) gameOver=true;
-    if(island.y>canvas.height)islands.splice(i,1);
+    let island = islands[i];
+    island.y += scrollSpeed;
+    ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
+    const margin = 0.6;
+    const hitBox = {x:island.x + island.size*(1-margin)/2, y:island.y + island.size*(1-margin)/2, size:island.size*margin};
+    if(isColliding(kofun, hitBox)) gameOver = true;
+    if(island.y > canvas.height) islands.splice(i,1);
   }
 
   // コイン
   for(let i=coins.length-1;i>=0;i--){
-    let coin=coins[i];
-    coin.y+=scrollSpeed;
+    let coin=coins[i]; coin.y+=scrollSpeed;
     ctx.drawImage(coinImg,coin.x,coin.y,coin.size,coin.size);
-    if(isColliding(kofun,coin)){score+=10;coins.splice(i,1);}
+    if(isColliding(kofun,coin)){ score+=10; coins.splice(i,1); }
     else if(coin.y>canvas.height) coins.splice(i,1);
   }
 
   // 勾玉
   for(let i=magatamas.length-1;i>=0;i--){
-    let m=magatamas[i];
-    m.y+=scrollSpeed;
+    let m=magatamas[i]; m.y+=scrollSpeed;
     ctx.drawImage(magatamaImg,m.x,m.y,m.size,m.size);
-    if(isColliding(kofun,m)){fuel=Math.min(maxFuel,fuel+30);magatamas.splice(i,1);}
+    if(isColliding(kofun,m)){ fuel=Math.min(maxFuel,fuel+30); magatamas.splice(i,1);}
     else if(m.y>canvas.height) magatamas.splice(i,1);
   }
 
-  fuel-=fuelConsumption;
-  if(fuel<=0){fuel=0;gameOver=true;}
+  fuel -= fuelConsumption;
+  if(fuel<=0){ fuel=0; gameOver=true; }
 
-  kofun.x+=(mouse.x-kofun.x)*0.2;kofun.y+=(mouse.y-kofun.y)*0.2;
-  kofun.x=Math.max(0,Math.min(canvas.width-kof.size,kofun.x));
+  kofun.x += (mouse.x-kofun.x)*0.2; kofun.y += (mouse.y-kofun.y)*0.2;
+  kofun.x=Math.max(0,Math.min(canvas.width-kofun.size,kofun.x));
   kofun.y=Math.max(0,Math.min(canvas.height-kofun.size,kofun.y));
   ctx.drawImage(kofunImg,kofun.x,kofun.y,kofun.size,kofun.size);
 
-  // エネルギーゲージ
-  const fuelBarWidth=canvas.width*0.6;
-  const fuelBarHeight=40;
-  const fuelBarX=(canvas.width-fuelBarWidth)/2;
-  const fuelBarY=20;
+  // エネルギー
+  const fuelBarWidth=canvas.width*0.6, fuelBarHeight=40;
   ctx.fillStyle="purple";
-  ctx.fillRect(fuelBarX,fuelBarY,(fuel/maxFuel)*fuelBarWidth,fuelBarHeight);
-  ctx.strokeStyle="black";ctx.lineWidth=3;
-  ctx.strokeRect(fuelBarX,fuelBarY,fuelBarWidth,fuelBarHeight);
-  ctx.fillStyle="black";ctx.font="28px sans-serif";ctx.textAlign="center";
-  ctx.fillText("Magatama Energy",canvas.width/2,fuelBarY-8);
+  ctx.fillRect((canvas.width-fuelBarWidth)/2,20,(fuel/maxFuel)*fuelBarWidth,fuelBarHeight);
+  ctx.strokeStyle="black"; ctx.lineWidth=3;
+  ctx.strokeRect((canvas.width-fuelBarWidth)/2,20,fuelBarWidth,fuelBarHeight);
+  ctx.fillStyle="black"; ctx.font="28px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("Magatama Energy",canvas.width/2,12);
 
-  // スコア
-  ctx.fillStyle="black";ctx.font="28px sans-serif";ctx.textAlign="left";
-  ctx.fillText("Score: "+score,10,fuelBarY+fuelBarHeight+40);
+  ctx.fillStyle="black"; ctx.font="28px sans-serif"; ctx.textAlign="left";
+  ctx.fillText("Score: "+score,10,80);
 
-  if(gameOver){onGameOver();return;}
+  if(gameOver){ onGameOver(); return; }
   loopId=requestAnimationFrame(gameLoop);
 }
 
-// --- ゲームオーバー ---
 async function onGameOver(){
   cancelAnimationFrame(loopId);
   clearInterval(islandInterval); clearInterval(coinInterval); clearInterval(magatamaInterval);
@@ -232,79 +194,43 @@ async function onGameOver(){
   let todayRecord = await getTodayRecord();
   if(score>todayRecord){ await updateTodayRecord(score); todayRecord=score; }
 
-  restartBtn.style.display="none"; // 最初は非表示
-  let goY=-100, scoreY=-50, recordY=0, btnY=-50;
-  const targetGOY=canvas.height/2-20;
-  const targetScoreY=canvas.height/2+20;
-  const targetRecordY=canvas.height/2+60;
-  const targetBtnY=canvas.height/2+120;
-
-  function drawGameOverAnim(){
+  // アニメーションで上から降らせる
+  let displayY = -100;
+  const animStep = 10;
+  function dropText(){
     ctx.fillStyle="rgba(200,200,200,0.9)";
-    ctx.fillRect(0, canvas.height/2-150, canvas.width, 250);
-
-    // GAME OVER
-    goY+=(targetGOY-goY)*0.1;
-    ctx.fillStyle="red";ctx.textAlign="center";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="red"; ctx.textAlign="center";
     ctx.font=`${Math.floor(canvas.width/20)}px sans-serif`;
-    ctx.fillText("GAME OVER",canvas.width/2,goY);
+    let y = Math.min(displayY, canvas.height/2-20);
+    ctx.fillText("GAME OVER",canvas.width/2,y);
+    ctx.fillStyle="black"; ctx.font=`${Math.floor(canvas.width/30)}px sans-serif`;
+    ctx.fillText("Your Score: "+score,canvas.width/2,y+60);
+    ctx.fillText("Today's Record: "+todayRecord,canvas.width/2,y+100);
 
-    // Your Score
-    if(goY>targetGOY-1){
-      scoreY+=(targetScoreY-scoreY)*0.1;
-      ctx.fillStyle="black";
-      ctx.font=`${Math.floor(canvas.width/30)}px sans-serif`;
-      ctx.fillText("Your Score: "+score,canvas.width/2,scoreY);
-    }
-
-    // Today's Record
-    if(scoreY>targetScoreY-1){
-      recordY+=(targetRecordY-recordY)*0.1;
-      ctx.fillText("Today's Record: "+todayRecord,canvas.width/2,recordY);
-    }
-
-    // Restartボタン
-    if(recordY>targetRecordY-1){
-      btnY+=(targetBtnY-btnY)*0.1;
-      restartBtn.style.display="block";
-      restartBtn.style.top=btnY+"px";
-    }
-
-    if(btnY<targetBtnY-1) requestAnimationFrame(drawGameOverAnim);
+    if(displayY < canvas.height/2-20){ displayY += animStep; requestAnimationFrame(dropText); }
+    else restartBtn.style.display="block";
   }
-
-  drawGameOverAnim();
+  dropText();
 }
 
-// リスタート
+// --- リスタート ---
 let islandInterval, coinInterval, magatamaInterval;
-restartBtn.addEventListener("click",()=>{
-  restartBtn.style.display="none";
-  resetGame();
-  islandInterval=setInterval(spawnIsland,1000);
-  coinInterval=setInterval(spawnCoin,1000);
-  magatamaInterval=setInterval(spawnMagatama,2500);
-  gameLoop();
+restartBtn.addEventListener("click",()=>{ 
+  restartBtn.style.display="none"; resetGame(); startGame();
 });
 
 function resetGame(){
-  islands=[];coins=[];magatamas=[];score=0;fuel=maxFuel;gameOver=false;
-  kofun.x=canvas.width/2;kofun.y=canvas.height-tileSize*1.5;
+  islands=[]; coins=[]; magatamas=[]; score=0; fuel=maxFuel; gameOver=false;
+  kofun.x=canvas.width/2; kofun.y=canvas.height-tileSize*1.5;
 }
 
-// スタートボタン
-const startBtn=document.getElementById("startBtn");
-let loopStarted=false;
-startBtn.addEventListener("click",()=>{
-  startOverlay.style.display="none";
-  if(!loopStarted){
-    loopStarted=true;
-    islandInterval=setInterval(spawnIsland,1000);
-    coinInterval=setInterval(spawnCoin,1000);
-    magatamaInterval=setInterval(spawnMagatama,2500);
-    gameLoop();
-  }
-});
+function startGame(){
+  islandInterval = setInterval(spawnIsland,1000);
+  coinInterval = setInterval(spawnCoin,1000);
+  magatamaInterval = setInterval(spawnMagatama,2500);
+  gameLoop();
+}
 </script>
 </body>
 </html>
