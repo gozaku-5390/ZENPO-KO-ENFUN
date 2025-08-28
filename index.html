@@ -108,7 +108,7 @@ function spawnMagatama(){
   magatamas.push({ 
     x: Math.random()*(canvas.width - tileSize*0.8), 
     y: -tileSize*0.8, 
-    size: tileSize*1.5
+    size: tileSize*1
   });
 }
 setInterval(spawnMagatama,10000);
@@ -171,8 +171,8 @@ for(let i=islands.length-1;i>=0;i--){
   if(fuel <= 0){ fuel=0; gameOver=true; }
 
   // 古墳追従
-  kofun.x += (mouse.x-kofun.x)*0.05;
-  kofun.y += (mouse.y-kofun.y)*0.05;
+  kofun.x += (mouse.x-kofun.x)*0.1;
+  kofun.y += (mouse.y-kofun.y)*0.1;
   kofun.x=Math.max(0,Math.min(canvas.width-kofun.size,kofun.x));
   kofun.y=Math.max(0,Math.min(canvas.height-kofun.size,kofun.y));
 
@@ -230,5 +230,6 @@ gameLoop();
 </script>
 </body>
 </html>
+
 
 
