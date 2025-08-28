@@ -106,10 +106,11 @@ const fuelConsumption = 0.1;
 canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX - kofun.size/2; mouse.y=e.offsetY - kofun.size/2; });
 canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX - kofun.size/2; mouse.y=e.touches[0].clientY - kofun.size/2; });
 
-// --- 島・コイン・勾玉 ---
-function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
-setInterval(spawnIsland,2000);
+// --- 衝突判定 ---
+function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
 
+// --- 島・コイン・勾玉スポーン ---
+function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
 function spawnCoin(){
   let coin, overlap;
   do{
@@ -118,8 +119,6 @@ function spawnCoin(){
   }while(overlap);
   coins.push(coin);
 }
-setInterval(spawnCoin,1500);
-
 function spawnMagatama(){
   let m = { x: Math.random()*(canvas.width - tileSize*1), y: -tileSize*1, size: tileSize*1 };
   islands.forEach(island => {
@@ -129,10 +128,6 @@ function spawnMagatama(){
   });
   magatamas.push(m);
 }
-setInterval(spawnMagatama, 4000);
-
-// --- 衝突判定 ---
-function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
 
 // --- ゲームループ ---
 let loopId;
@@ -226,6 +221,10 @@ async function onGameOver(){
   cancelAnimationFrame(loopId);
   restartBtn.style.display="block";
 
+  clearInterval(islandInterval);
+  clearInterval(coinInterval);
+  clearInterval(magatamaInterval);
+
   let todayRecord = await getTodayRecord();
   if(score>todayRecord){ await updateTodayRecord(score); todayRecord=score; }
 
@@ -251,7 +250,18 @@ async function onGameOver(){
 }
 
 // --- リスタート ---
-restartBtn.addEventListener("click",()=>{ restartBtn.style.display="none"; resetGame(); gameLoop(); });
+let islandInterval, coinInterval, magatamaInterval;
+
+restartBtn.addEventListener("click",()=>{
+  restartBtn.style.display="none";
+  resetGame();
+  // 再スタート時もスポーン開始
+  islandInterval = setInterval(spawnIsland, 2000);
+  coinInterval = setInterval(spawnCoin, 1500);
+  magatamaInterval = setInterval(spawnMagatama, 4000);
+  gameLoop();
+});
+
 function resetGame(){
   islands=[]; coins=[]; magatamas=[]; score=0; fuel=maxFuel; gameOver=false;
   kofun.x=canvas.width/2; kofun.y=canvas.height-tileSize*1.5;
@@ -267,12 +277,13 @@ startBtn.addEventListener("click", () => {
   startOverlay.style.display = "none";
   if(!loopStarted){
     loopStarted = true;
+    // スポーン開始
+    islandInterval = setInterval(spawnIsland, 2000);
+    coinInterval = setInterval(spawnCoin, 1500);
+    magatamaInterval = setInterval(spawnMagatama, 4000);
     gameLoop();
   }
 });
-
-// 最初は gameLoop() は呼ばない
-// gameLoop();
 </script>
 </body>
 </html>
