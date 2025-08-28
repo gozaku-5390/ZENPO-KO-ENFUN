@@ -16,32 +16,46 @@
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
 // --- Firebase設定 ---
 const firebaseConfig = {
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  apiKey: "AIzaSyBMJWHa5H0COcPcFO5-SJV3jaIm1y9lggY",
+  authDomain: "zenpo-ko-enfun.firebaseapp.com",
+  databaseURL: "https://zenpo-ko-enfun-default-rtdb.firebaseio.com",
+  projectId: "zenpo-ko-enfun",
+  storageBucket: "zenpo-ko-enfun.firebasestorage.app",
+  messagingSenderId: "824547703470",
+  appId: "1:824547703470:web:b9c36e1554a50de544cb3f",
+  measurementId: "G-JWX8H2C58G"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBMJWHa5H0COcPcFO5-SJV3jaIm1y9lggY",
-    authDomain: "zenpo-ko-enfun.firebaseapp.com",
-    databaseURL: "https://zenpo-ko-enfun-default-rtdb.firebaseio.com",
-    projectId: "zenpo-ko-enfun",
-    storageBucket: "zenpo-ko-enfun.firebasestorage.app",
-    messagingSenderId: "824547703470",
-    appId: "1:824547703470:web:b9c36e1554a50de544cb3f",
-    measurementId: "G-JWX8H2C58G"
-  };
+// --- 今日の日付キー ---
+function getTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+}
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+// --- 今日の世界記録を取得 ---
+async function getTodayRecord() {
+  const snapshot = await get(ref(db, 'worldRecords/' + getTodayKey()));
+  return snapshot.exists() ? snapshot.val() : 0;
+}
+
+// --- 今日の世界記録を更新 ---
+async function updateTodayRecord(score) {
+  const key = getTodayKey();
+  const oldScore = await getTodayRecord();
+  if(score > oldScore){
+    await set(ref(db, 'worldRecords/' + key), score);
+    return true;
+  }
+  return false;
+}
 
 // --- ゲーム用 ---
 const canvas = document.getElementById("gameCanvas");
@@ -73,28 +87,6 @@ let islands=[], coins=[], score=0, gameOver=false;
 // --- 入力 ---
 canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX - kofun.size/2; mouse.y=e.offsetY - kofun.size/2; });
 canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX - kofun.size/2; mouse.y=e.touches[0].clientY - kofun.size/2; });
-
-// --- 日付キー ---
-function getTodayKey(){
-  const now = new Date();
-  return now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate();
-}
-
-// --- Firebase操作 ---
-async function getTodayRecord(){
-  const key = getTodayKey();
-  const snapshot = await get(ref(db,'worldRecords/'+key));
-  return snapshot.exists()? snapshot.val():0;
-}
-async function updateTodayRecord(newScore){
-  const key = getTodayKey();
-  const oldScore = await getTodayRecord();
-  if(newScore > oldScore){
-    await set(ref(db,'worldRecords/'+key), newScore);
-    return true;
-  }
-  return false;
-}
 
 // --- 島・コイン ---
 function spawnIsland(){ islands.push({x:Math.random()*(canvas.width-tileSize*2), y:-tileSize*2, size:tileSize*2}); }
@@ -181,8 +173,6 @@ function resetGame(){
 
 // --- スタート ---
 gameLoop();
-
 </script>
 </body>
 </html>
-
