@@ -16,6 +16,22 @@
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
 
+<!-- 操作説明オーバーレイ -->
+<div id="startOverlay" style="
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.7); color:white; display:flex;
+    flex-direction:column; justify-content:center; align-items:center; font-size:24px;
+    z-index:10;
+">
+  <div style="margin-bottom:30px; text-align:center;">
+    <p>前方後円墳を操作してコインを集めよう！</p>
+    <p>マウス/タッチで移動</p>
+    <p>勾玉を取ると燃料回復</p>
+    <p>燃料がなくなるとゲームオーバー</p>
+  </div>
+  <button id="startBtn" style="font-size:28px; padding:10px 30px; cursor:pointer;">START</button>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
@@ -106,7 +122,6 @@ setInterval(spawnCoin,1500);
 
 function spawnMagatama(){
   let m = { x: Math.random()*(canvas.width - tileSize*1), y: -tileSize*1, size: tileSize*1 };
-  // 島と重なっていたら横にずらす
   islands.forEach(island => {
     if (!(m.x + m.size < island.x || m.x > island.x + island.size || m.y + m.size < island.y || m.y > island.y + island.size)) {
       m.x = Math.min(canvas.width - m.size, island.x + island.size + 5);
@@ -134,7 +149,6 @@ function gameLoop(){
     island.y += scrollSpeed;
     ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
 
-    // 小さめの矩形で衝突判定
     const margin = 0.6;
     const hitBox = {
         x: island.x + island.size * (1 - margin) / 2,
@@ -224,7 +238,6 @@ async function onGameOver(){
   let textWidth = Math.max(ctx.measureText(gameOverText).width, ctx.measureText(yourScoreText).width, ctx.measureText(recordText).width);
   let overlayHeight = 150;
 
-  // 背景を文字すべてにかかるように
   ctx.fillStyle = "rgba(200,200,200,0.9)";
   ctx.fillRect((canvas.width - textWidth)/2 - overlayPadding, (canvas.height - overlayHeight)/2, textWidth + overlayPadding*2, overlayHeight);
 
@@ -244,7 +257,22 @@ function resetGame(){
   kofun.x=canvas.width/2; kofun.y=canvas.height-tileSize*1.5;
 }
 
-gameLoop();
+// --- スタートボタン処理 ---
+const startOverlay = document.getElementById("startOverlay");
+const startBtn = document.getElementById("startBtn");
+
+let loopStarted = false;
+
+startBtn.addEventListener("click", () => {
+  startOverlay.style.display = "none";
+  if(!loopStarted){
+    loopStarted = true;
+    gameLoop();
+  }
+});
+
+// 最初は gameLoop() は呼ばない
+// gameLoop();
 </script>
 </body>
 </html>
