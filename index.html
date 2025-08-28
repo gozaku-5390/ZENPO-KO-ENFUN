@@ -114,13 +114,23 @@ function gameLoop(){
   offsetY += scrollSpeed; if(offsetY>=tileSize) offsetY=0;
 
   // 島
-  for(let i=islands.length-1;i>=0;i--){
-    let isl=islands[i];
-    isl.y+=scrollSpeed;
-    ctx.drawImage(islandImg,isl.x,isl.y,isl.size,isl.size);
-    if(isColliding(kofun,isl)) gameOver=true;
-    if(isl.y>canvas.height) islands.splice(i,1);
-  }
+for(let i=islands.length-1;i>=0;i--){
+    let island = islands[i];
+    island.y += scrollSpeed;
+    ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
+
+    // 小さめの矩形で衝突判定
+    const margin = 0.6; // 判定サイズを60%に
+    const hitBox = {
+        x: island.x + island.size * (1 - margin) / 2,
+        y: island.y + island.size * (1 - margin) / 2,
+        size: island.size * margin
+    };
+    if(isColliding(kofun, hitBox)) gameOver = true;
+
+    if(island.y > canvas.height) islands.splice(i,1);
+}
+
 
   // コイン
   for(let i=coins.length-1;i>=0;i--){
@@ -176,3 +186,4 @@ gameLoop();
 </script>
 </body>
 </html>
+
