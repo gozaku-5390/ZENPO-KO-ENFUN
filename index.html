@@ -106,12 +106,13 @@ setInterval(spawnCoin,1500);
 
 function spawnMagatama(){
   magatamas.push({ 
-    x: Math.random()*(canvas.width - tileSize*0.8), 
-    y: -tileSize*0.8, 
+    x: Math.random()*(canvas.width - tileSize*1), 
+    y: -tileSize*1, 
     size: tileSize*1
   });
 }
-setInterval(spawnMagatama,10000);
+// 勾玉500msごとに出現
+setInterval(spawnMagatama, 500);
 
 // --- 衝突判定 ---
 function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
@@ -126,23 +127,21 @@ function gameLoop(){
   offsetY += scrollSpeed; if(offsetY>=tileSize) offsetY=0;
 
   // 島
-for(let i=islands.length-1;i>=0;i--){
+  for(let i=islands.length-1;i>=0;i--){
     let island = islands[i];
     island.y += scrollSpeed;
     ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
 
     // 小さめの矩形で衝突判定
-    const margin = 0.6; // 判定サイズを60%に
+    const margin = 0.6;
     const hitBox = {
         x: island.x + island.size * (1 - margin) / 2,
         y: island.y + island.size * (1 - margin) / 2,
         size: island.size * margin
     };
     if(isColliding(kofun, hitBox)) gameOver = true;
-
     if(island.y > canvas.height) islands.splice(i,1);
-}
-
+  }
 
   // コイン
   for(let i=coins.length-1;i>=0;i--){
@@ -180,22 +179,25 @@ for(let i=islands.length-1;i>=0;i--){
 
   // --- エネルギーゲージ ---
   const fuelBarWidth = canvas.width * 0.6;
-  const fuelBarHeight = 30;
+  const fuelBarHeight = 40;
   const fuelBarX = (canvas.width - fuelBarWidth)/2;
   const fuelBarY = 20;
+
   ctx.fillStyle = "purple";
   ctx.fillRect(fuelBarX, fuelBarY, (fuel/maxFuel)*fuelBarWidth, fuelBarHeight);
   ctx.strokeStyle = "black";
   ctx.lineWidth = 3;
   ctx.strokeRect(fuelBarX, fuelBarY, fuelBarWidth, fuelBarHeight);
+
+  // エネルギー文字
   ctx.fillStyle = "black";
-  ctx.font = "20px sans-serif";
+  ctx.font = "28px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("Magatama Energy", canvas.width/2, fuelBarY - 5);
+  ctx.fillText("Magatama Energy", canvas.width/2, fuelBarY - 8);
 
   // --- スコア表示（エネルギーの下、左端） ---
   ctx.fillStyle = "black";
-  ctx.font = `${Math.floor(canvas.width/20)}px sans-serif`;
+  ctx.font = "28px sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("Score: " + score, 10, fuelBarY + fuelBarHeight + 40);
 
@@ -212,11 +214,27 @@ async function onGameOver(){
   let todayRecord = await getTodayRecord();
   if(score>todayRecord){ await updateTodayRecord(score); todayRecord=score; }
 
-  ctx.fillStyle="red"; ctx.font=`${Math.floor(canvas.width/20)}px sans-serif`; ctx.textAlign="center";
-  ctx.fillText("GAME OVER",canvas.width/2,canvas.height/2);
-  ctx.fillStyle="black"; ctx.font=`${Math.floor(canvas.width/30)}px sans-serif`;
-  ctx.fillText("Your Score: "+score,canvas.width/2,canvas.height/2 + 50);
-  ctx.fillText("Today's Record: "+todayRecord,canvas.width/2,canvas.height/2 + 90);
+  // 背景を追加
+  const overlayPadding = 20;
+  const gameOverText = "GAME OVER";
+  const yourScoreText = "Your Score: "+score;
+  const recordText = "Today's Record: "+todayRecord;
+
+  ctx.font = `${Math.floor(canvas.width/20)}px sans-serif`;
+  let textWidth = Math.max(ctx.measureText(gameOverText).width, ctx.measureText(yourScoreText).width, ctx.measureText(recordText).width);
+  let overlayHeight = 120;
+
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.fillRect((canvas.width-textWidth)/2 - overlayPadding, (canvas.height-overlayHeight)/2, textWidth + overlayPadding*2, overlayHeight);
+
+  // GAME OVER文字
+  ctx.fillStyle="red";
+  ctx.textAlign="center";
+  ctx.fillText(gameOverText,canvas.width/2,canvas.height/2 + 30);
+  ctx.fillStyle="black";
+  ctx.font=`${Math.floor(canvas.width/30)}px sans-serif`;
+  ctx.fillText(yourScoreText,canvas.width/2,canvas.height/2 + 70);
+  ctx.fillText(recordText,canvas.width/2,canvas.height/2 + 100);
 }
 
 // --- リスタート ---
@@ -230,7 +248,3 @@ gameLoop();
 </script>
 </body>
 </html>
-
-
-
-
