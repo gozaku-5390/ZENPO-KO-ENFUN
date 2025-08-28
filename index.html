@@ -9,10 +9,14 @@
 </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="400" height="600"></canvas>
+<canvas id="gameCanvas"></canvas>
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+
+// 画面サイズに合わせる
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
 // 画像
 const seaImg = new Image(); seaImg.src = "sea_tile.png";
@@ -20,116 +24,124 @@ const islandImg = new Image(); islandImg.src = "island.png";
 const kofunImg = new Image(); kofunImg.src = "kofun.png";
 const coinImg = new Image(); coinImg.src = "coin.png";
 
-// スクロール
-const tileSize = 64;
-const scrollSpeed = 15;
+// タイル数（横7枚、縦12枚を目安）
+const tilesX = 7;
+const tilesY = 12;
+
+// タイルサイズ（縦横比を保ちつつ画面にフィット）
+const tileSizeX = canvas.width / tilesX;
+const tileSizeY = canvas.height / tilesY;
+const tileSize = Math.min(tileSizeX, tileSizeY);
+
+// 海タイル配列
 let seaTiles = [];
-for (let y=-tileSize; y<canvas.height+tileSize; y+=tileSize){
-  for (let x=0; x<canvas.width; x+=tileSize){
-    seaTiles.push({x,y});
+for(let y=-1; y<=tilesY; y++){
+  for(let x=0; x<tilesX; x++){
+    seaTiles.push({x, y});
   }
 }
+let offsetY = 0;
 
-// プレイヤー
-let kofun = { x: canvas.width/2-32, y: canvas.height-100, size:64 };
+// 基本のスクロール速度（元の速度を基準にする）
+const baseSpeed = 16;
+
+// タイルサイズに応じて調整
+const scrollSpeed = baseSpeed * (tileSize / 64); // tileSizeが大きければ速度も増える
+
+
+// プレイヤー古墳
+let kofun = { x: canvas.width/2, y: canvas.height - tileSize*1.5, size: tileSize };
 let mouse = { x:kofun.x, y:kofun.y };
 
 // 島
 let islands = [];
-function spawnIsland() { islands.push({x:Math.random()*(canvas.width-128),y:-128,size:128}); }
-setInterval(spawnIsland,2000);
+function spawnIsland() {
+  islands.push({ 
+    x: Math.random()*(canvas.width - tileSize*2), 
+    y: -tileSize*2, 
+    size: tileSize*2 
+  });
+}
+setInterval(spawnIsland, 2000);
 
 // コイン
 let coins = [];
 function spawnCoin(){
   let coin, overlap;
   do{
-    coin={x:Math.random()*(canvas.width-32),y:-32,size:32};
-    overlap=islands.some(island=>!(coin.x+coin.size<island.x||coin.x>island.x+island.size||coin.y+coin.size<island.y||coin.y>island.y+island.size));
-  }while(overlap);
+    coin = { 
+      x: Math.random()*(canvas.width - tileSize/2), 
+      y: -tileSize/2, 
+      size: tileSize/2 
+    };
+    overlap = islands.some(island => !(coin.x+coin.size<island.x||coin.x>island.x+island.size||coin.y+coin.size<island.y||coin.y>island.y+island.size));
+  } while(overlap);
   coins.push(coin);
 }
-setInterval(spawnCoin,1500);
+setInterval(spawnCoin, 1500);
 
 // スコア
-let score=0;
+let score = 0;
 setInterval(()=>{score+=1},1000);
 
 // 入力
-canvas.addEventListener("mousemove", e=>{ mouse.x=e.offsetX-kofun.size/2; mouse.y=e.offsetY-kofun.size/2; });
-canvas.addEventListener("touchmove", e=>{ mouse.x=e.touches[0].clientX-kofun.size/2; mouse.y=e.touches[0].clientY-kofun.size/2; });
+canvas.addEventListener("mousemove", e=>{
+  mouse.x = e.offsetX - kofun.size/2;
+  mouse.y = e.offsetY - kofun.size/2;
+});
+canvas.addEventListener("touchmove", e=>{
+  mouse.x = e.touches[0].clientX - kofun.size/2;
+  mouse.y = e.touches[0].clientY - kofun.size/2;
+});
 
-// 矩形判定（四角）
-function isColliding(a,b){ return !(a.x+a.size<b.x||a.x>b.x+b.size||a.y+a.size<b.y||a.y>b.y+b.size); }
-
-// 古墳ピクセル判定用バッファ
-let kofunBuffer=document.createElement("canvas");
-kofunBuffer.width=kofun.size;
-kofunBuffer.height=kofun.size;
-let kctx=kofunBuffer.getContext("2d");
-kctx.drawImage(kofunImg,0,0,kofun.size,kofun.size);
-let kofunData=kctx.getImageData(0,0,kofun.size,kofun.size).data;
-
-// 古墳ピクセル判定（敵は矩形でOKなので使用しない）
-function pixelPerfectCollision(a,bImg,bX,bY){
-  // aの不透明部分とbImgの矩形内にある部分だけ判定
-  let xStart=Math.max(0,bX-a.x);
-  let yStart=Math.max(0,bY-a.y);
-  let xEnd=Math.min(a.size,bX-a.x+bImg.width);
-  let yEnd=Math.min(a.size,bY-a.y+bImg.height);
-
-  for(let y=yStart;y<yEnd;y++){
-    for(let x=xStart;x<xEnd;x++){
-      let aAlpha=kofunData[(y*a.size+x)*4+3];
-      if(aAlpha>0) return true; // 古墳がbImg上に重なっているだけで判定
-    }
-  }
-  return false;
+// 衝突判定（矩形）
+function isColliding(a,b){
+  return !(a.x + a.size < b.x || a.x > b.x + b.size || a.y + a.size < b.y || a.y > b.y + b.size);
 }
 
-let gameOver=false;
+let gameOver = false;
 
 // 描画ループ
 function gameLoop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // 海タイル
+  // 海タイル描画
   for(let t of seaTiles){
-    ctx.drawImage(seaImg,t.x,t.y,tileSize,tileSize);
-    t.y+=scrollSpeed;
-    if(t.y>=canvas.height) t.y=-tileSize+(t.y-canvas.height);
+    ctx.drawImage(seaImg, t.x*tileSize, t.y*tileSize + offsetY, tileSize, tileSize);
   }
+  offsetY += scrollSpeed;
+  if(offsetY >= tileSize) offsetY = 0;
 
-  // 島
+  // 島描画＆移動
   for(let i=islands.length-1;i>=0;i--){
-    let island=islands[i];
-    island.y+=scrollSpeed;
-    ctx.drawImage(islandImg,island.x,island.y,island.size,island.size);
-    if(isColliding(kofun,island)) gameOver=true; // 島は矩形判定
-    if(island.y>canvas.height) islands.splice(i,1);
+    let island = islands[i];
+    island.y += scrollSpeed;
+    ctx.drawImage(islandImg, island.x, island.y, island.size, island.size);
+    if(isColliding(kofun,island)) gameOver = true;
+    if(island.y > canvas.height) islands.splice(i,1);
   }
 
-  // コイン
+  // コイン描画＆移動
   for(let i=coins.length-1;i>=0;i--){
-    let coin=coins[i];
-    coin.y+=scrollSpeed;
-    ctx.drawImage(coinImg,coin.x,coin.y,coin.size,coin.size);
-    if(isColliding(kofun,coin)){ score+=10; coins.splice(i,1); } // コインは矩形判定
-    else if(coin.y>canvas.height) coins.splice(i,1);
+    let coin = coins[i];
+    coin.y += scrollSpeed;
+    ctx.drawImage(coinImg, coin.x, coin.y, coin.size, coin.size);
+    if(isColliding(kofun,coin)){ score+=10; coins.splice(i,1); }
+    else if(coin.y > canvas.height) coins.splice(i,1);
   }
 
   // 古墳ふわふわ追従
-  kofun.x+=(mouse.x-kofun.x)*0.05;
-  kofun.y+=(mouse.y-kofun.y)*0.05;
+  kofun.x += (mouse.x - kofun.x) * 0.05;
+  kofun.y += (mouse.y - kofun.y) * 0.05;
 
   // 画面外制限
-  kofun.x=Math.max(0,Math.min(canvas.width-kofun.size,kofun.x));
-  kofun.y=Math.max(0,Math.min(canvas.height-kofun.size,kofun.y));
+  kofun.x = Math.max(0, Math.min(canvas.width - kofun.size, kofun.x));
+  kofun.y = Math.max(0, Math.min(canvas.height - kofun.size, kofun.y));
 
   // 古墳描画
-  ctx.drawImage(kofunImg,kofun.x,kofun.y,kofun.size,kofun.size);
+  ctx.drawImage(kofunImg, kofun.x, kofun.y, kofun.size, kofun.size);
 
-  // スコア
+  // スコア表示
   ctx.fillStyle="black";
   ctx.font="20px sans-serif";
   ctx.fillText("Score: "+score,10,30);
