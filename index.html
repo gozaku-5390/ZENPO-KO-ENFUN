@@ -6,18 +6,15 @@
 <style>
   body { margin:0; overflow:hidden; touch-action:none; background:#87ceeb; font-family:sans-serif; }
   canvas { display:block; margin:auto; background:#87ceeb; }
-  #restartBtn, #homeBtn {
-    position:absolute; display:none; left:50%; transform:translateX(-50%);
+  #restartBtn {
+    position:absolute; display:none; left:50%; top:60%; transform:translateX(-50%);
     padding:10px 20px; font-size:20px; cursor:pointer; z-index:10;
   }
-  #restartBtn { top:60%; }
-  #homeBtn { top:70%; }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
 <button id="restartBtn">Restart</button>
-<button id="homeBtn" onclick="location.href='index.html'">ホームへ戻る</button>
 
 <!-- ロード画面 -->
 <div id="loadOverlay" style="
@@ -90,7 +87,6 @@ async function updateTodayRecord(score) {
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const restartBtn = document.getElementById("restartBtn");
-const homeBtn = document.getElementById("homeBtn");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 let tileSize = Math.min(canvas.width/7, canvas.height/12);
@@ -231,7 +227,6 @@ function gameLoop(){
 async function onGameOver(){
   cancelAnimationFrame(loopId);
   restartBtn.style.display="block";
-  homeBtn.style.display="block";
   clearInterval(islandInterval); clearInterval(coinInterval); clearInterval(magatamaInterval);
 
   let todayRecord = await getTodayRecord();
@@ -253,9 +248,9 @@ async function onGameOver(){
 // --- リスタート ---
 let islandInterval, coinInterval, magatamaInterval;
 restartBtn.addEventListener("click",()=>{
-  restartBtn.style.display="none"; homeBtn.style.display="none";
+  restartBtn.style.display="none";
   resetGame();
-  islandInterval = setInterval(spawnIsland,1000); // 早め
+  islandInterval = setInterval(spawnIsland,1000);
   coinInterval = setInterval(spawnCoin,1000);
   magatamaInterval = setInterval(spawnMagatama,2500);
   gameLoop();
@@ -283,5 +278,3 @@ startBtn.addEventListener("click",()=>{
 </script>
 </body>
 </html>
-
-
